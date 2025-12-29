@@ -112,10 +112,25 @@ function App() {
 
   const visibility = shareMode || playing || hasPlayed || waitingForBlow;
 
-  const toggleLightCandle = useCallback(
-    () => setCandleVisible((prevState) => !prevState),
-    []
-  );
+  const toggleLightCandle = useCallback(() => {
+    // Nếu đang chờ thổi nến và nến đang sáng, trigger celebration
+    if (candleVisible && waitingForBlow && !candleWasBlown) {
+      setCandleVisible(false);
+      setCandleWasBlown(true);
+      setWaitingForBlow(false);
+      setShowCelebration(true);
+
+      // Play celebration sound
+      if (celebrationAudioRef.current) {
+        celebrationAudioRef.current.currentTime = 0;
+        celebrationAudioRef.current.play().catch((err) => {
+          console.log("Celebration audio blocked:", err);
+        });
+      }
+    } else {
+      setCandleVisible((prevState) => !prevState);
+    }
+  }, [candleVisible, waitingForBlow, candleWasBlown]);
 
   // Trigger celebration when candle is blown - using refs for latest state
   const triggerCelebration = useCallback(() => {
@@ -131,7 +146,18 @@ function App() {
 
       // Play celebration sound
       if (celebrationAudioRef.current) {
-        celebrationAudioRef.current.play();
+        celebrationAudioRef.current.currentTime = 0;
+        celebrationAudioRef.current.play().catch((err) => {
+          console.log("Celebration audio blocked:", err);
+          // Try again on next user interaction
+          const playOnClick = () => {
+            if (celebrationAudioRef.current) {
+              celebrationAudioRef.current.play();
+            }
+            document.removeEventListener("click", playOnClick);
+          };
+          document.addEventListener("click", playOnClick);
+        });
       }
     }
   }, []);
@@ -377,11 +403,8 @@ function App() {
         {/* Display name */}
         {(playing || hasPlayed || waitingForBlow) && (
           <div
+            className="name-container"
             style={{
-              position: "absolute",
-              top: "18%",
-              left: "50%",
-              transform: "translateX(-50%)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",

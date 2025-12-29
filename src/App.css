@@ -76,3 +76,23 @@
     transform: translateY(-5px);
   }
 }
+
+/* Name container positioning */
+.name-container {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+@media screen and (max-width: 480px) {
+  .name-container {
+    top: 22%;
+  }
+}
+
+@media screen and (max-height: 700px) {
+  .name-container {
+    top: 24%;
+  }
+}
