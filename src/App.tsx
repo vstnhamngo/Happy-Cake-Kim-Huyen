@@ -84,6 +84,7 @@ function App() {
   const [candleWasBlown, setCandleWasBlown] = useState(false);
   const [waitingForBlow, setWaitingForBlow] = useState(false); // Chờ thổi nến
   const [hasAutoPlayed, setHasAutoPlayed] = useState(false); // Track auto play
+  const [needsUserClick, setNeedsUserClick] = useState(false); // Cần user click để play
   const celebrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Refs to track latest state for blow detection
@@ -228,33 +229,38 @@ function App() {
       if (hasAutoPlayed || !audioRef.current) return;
 
       setHasAutoPlayed(true);
-      setPlaying(true);
-      setCandleVisible(true);
 
-      audioRef.current.play().catch((error) => {
-        console.log("Autoplay blocked:", error);
-        setPlaying(false);
-        setCandleVisible(false);
-        // Fallback: add click listener
-        const handleClick = async () => {
-          if (!audioRef.current) return;
-          try {
-            await audioRef.current.play();
-            setPlaying(true);
-            setCandleVisible(true);
-            document.removeEventListener("click", handleClick);
-          } catch (e) {
-            console.error("Error playing audio:", e);
-          }
-        };
-        document.addEventListener("click", handleClick);
-      });
+      audioRef.current
+        .play()
+        .then(() => {
+          setPlaying(true);
+          setCandleVisible(true);
+        })
+        .catch((error) => {
+          console.log("Autoplay blocked:", error);
+          setNeedsUserClick(true);
+        });
     };
 
     // Wait a bit for the audio element to be ready
     const timer = setTimeout(tryAutoPlay, 100);
     return () => clearTimeout(timer);
   }, [hasAutoPlayed]);
+
+  // Handle user click to start
+  const handleStartClick = useCallback(() => {
+    if (!audioRef.current) return;
+    audioRef.current
+      .play()
+      .then(() => {
+        setPlaying(true);
+        setCandleVisible(true);
+        setNeedsUserClick(false);
+      })
+      .catch((e) => {
+        console.error("Error playing audio:", e);
+      });
+  }, []);
 
   return (
     <div
@@ -325,6 +331,48 @@ function App() {
 
       <audio {...{ src, ref: audioRef, preload: "auto", onEnded }} />
 
+      {/* Click to start overlay */}
+      {needsUserClick && (
+        <div
+          onClick={handleStartClick}
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: "rgba(255, 200, 200, 0.9)",
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 1000,
+            cursor: "pointer",
+          }}
+        >
+          <div
+            style={{
+              fontSize: "clamp(3rem, 8vw, 6rem)",
+              marginBottom: "1rem",
+            }}
+          >
+            🎂
+          </div>
+          <div
+            style={{
+              fontFamily: "'Dancing Script', cursive",
+              fontSize: "clamp(1.5rem, 4vw, 2.5rem)",
+              color: "#ff6b6b",
+              textAlign: "center",
+              padding: "0 1rem",
+              animation: "pulse 1.5s ease-in-out infinite",
+            }}
+          >
+            Bấm để bắt đầu 🎉
+          </div>
+        </div>
+      )}
+
       <div>
         {/* Display name */}
         {(playing || hasPlayed || waitingForBlow) && (
@@ -349,18 +397,12 @@ function App() {
                 fontFamily: "'Montserrat', cursive",
                 fontWeight: 700,
                 fontSize: "clamp(1.8rem, 8vw, 3rem)",
-                background:
-                  "linear-gradient(135deg, #8b0a50 0%, #c71585 50%, #8b0a50 100%)",
-                backgroundSize: "200% 200%",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
+                color: "#ff8c00",
                 textAlign: "center",
-                filter:
-                  "drop-shadow(0 2px 4px rgba(139, 10, 80, 0.3)) drop-shadow(0 0 15px rgba(199, 21, 133, 0.3))",
+                textShadow:
+                  "0 2px 4px rgba(255, 140, 0, 0.4), 0 0 15px rgba(255, 215, 0, 0.5)",
                 letterSpacing: "2px",
-                animation:
-                  "shimmer 3s ease-in-out infinite, floatName 4s ease-in-out infinite",
+                animation: "floatName 4s ease-in-out infinite",
               }}
             >
               {name}
