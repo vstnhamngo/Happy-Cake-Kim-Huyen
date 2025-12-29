@@ -83,6 +83,7 @@ function App() {
   const [showCelebration, setShowCelebration] = useState(false);
   const [candleWasBlown, setCandleWasBlown] = useState(false);
   const [waitingForBlow, setWaitingForBlow] = useState(false); // Chờ thổi nến
+  const [hasAutoPlayed, setHasAutoPlayed] = useState(false); // Track auto play
   const celebrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
   // Refs to track latest state for blow detection
@@ -221,32 +222,39 @@ function App() {
     }
   }, []);
 
-  // Auto start when page loads
+  // Autoplay when component mounts
   useEffect(() => {
-    const playAudio = async () => {
-      if (!audioRef.current) return;
-      try {
-        setPlaying(true);
-        setCandleVisible(true);
-        audioRef.current.load();
-        await audioRef.current.play();
-      } catch (error) {
-        console.log("Autoplay blocked, waiting for user interaction");
-        // Nếu autoplay bị chặn, thêm event listener cho click
+    const tryAutoPlay = () => {
+      if (hasAutoPlayed || !audioRef.current) return;
+
+      setHasAutoPlayed(true);
+      setPlaying(true);
+      setCandleVisible(true);
+
+      audioRef.current.play().catch((error) => {
+        console.log("Autoplay blocked:", error);
+        setPlaying(false);
+        setCandleVisible(false);
+        // Fallback: add click listener
         const handleClick = async () => {
           if (!audioRef.current) return;
           try {
             await audioRef.current.play();
+            setPlaying(true);
+            setCandleVisible(true);
             document.removeEventListener("click", handleClick);
           } catch (e) {
             console.error("Error playing audio:", e);
           }
         };
         document.addEventListener("click", handleClick);
-      }
+      });
     };
-    playAudio();
-  }, []);
+
+    // Wait a bit for the audio element to be ready
+    const timer = setTimeout(tryAutoPlay, 100);
+    return () => clearTimeout(timer);
+  }, [hasAutoPlayed]);
 
   return (
     <div
@@ -323,25 +331,36 @@ function App() {
           <div
             style={{
               position: "absolute",
-              top: "25%",
+              top: "18%",
               left: "50%",
               transform: "translateX(-50%)",
               display: "flex",
               flexDirection: "column",
               alignItems: "center",
               justifyContent: "center",
-              width: "100dvw",
-              zIndex: 40,
+              width: "90vw",
+              maxWidth: "400px",
+              zIndex: 50,
+              padding: "10px",
             }}
           >
             <span
               style={{
-                fontFamily: "Montserrat",
-                fontWeight: "bold",
-                fontSize: "2rem",
-                color: "#f0e4d0",
-                opacity: 0.9,
+                fontFamily: "'Montserrat', cursive",
+                fontWeight: 700,
+                fontSize: "clamp(1.8rem, 8vw, 3rem)",
+                background:
+                  "linear-gradient(135deg, #8b0a50 0%, #c71585 50%, #8b0a50 100%)",
+                backgroundSize: "200% 200%",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
                 textAlign: "center",
+                filter:
+                  "drop-shadow(0 2px 4px rgba(139, 10, 80, 0.3)) drop-shadow(0 0 15px rgba(199, 21, 133, 0.3))",
+                letterSpacing: "2px",
+                animation:
+                  "shimmer 3s ease-in-out infinite, floatName 4s ease-in-out infinite",
               }}
             >
               {name}
@@ -350,17 +369,18 @@ function App() {
             {waitingForBlow && (
               <div
                 style={{
-                  marginTop: "20px",
+                  marginTop: "15px",
                   animation: "pulse 1.5s ease-in-out infinite",
                 }}
               >
                 <span
                   style={{
-                    fontFamily: "Montserrat",
-                    fontWeight: "bold",
-                    fontSize: "1.5rem",
-                    color: "#ff6b6b",
-                    textShadow: "0 0 10px #ff6b6b, 0 0 20px #ff6b6b",
+                    fontFamily: "'Dancing Script', cursive",
+                    fontWeight: 700,
+                    fontSize: "clamp(1.2rem, 5vw, 1.8rem)",
+                    color: "#ff8c00",
+                    textShadow:
+                      "0 0 10px rgba(255, 140, 0, 0.5), 0 0 20px rgba(255, 215, 0, 0.4)",
                     textAlign: "center",
                   }}
                 >
@@ -379,6 +399,7 @@ function App() {
           top: 0,
           left: "50%",
           transform: "translateX(-50%)",
+          width: "min(400px, 100vw)",
         }}
       >
         <dotlottie-player
@@ -388,7 +409,7 @@ function App() {
           style={{
             zIndex: 20,
             visibility: visibility ? "visible" : "hidden",
-            width: 400,
+            width: "100%",
           }}
         />
       </div>
@@ -396,9 +417,10 @@ function App() {
       <div
         style={{
           position: "absolute",
-          top: "25%",
+          top: "20%",
           left: "50%",
           transform: "translateX(-50%)",
+          width: "min(400px, 100vw)",
         }}
       >
         <dotlottie-player
@@ -408,7 +430,7 @@ function App() {
           style={{
             zIndex: 30,
             visibility: visibility ? "visible" : "hidden",
-            width: 400,
+            width: "100%",
           }}
         />
       </div>
