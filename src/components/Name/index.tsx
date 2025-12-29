@@ -5,13 +5,22 @@ interface InputProps {
   setName: React.Dispatch<React.SetStateAction<string>>;
   shareMode: boolean;
   playing: boolean;
+  hasPlayed: boolean;
   run: boolean;
 }
 
 export const Name: React.FC<React.HTMLProps<HTMLInputElement> & InputProps> =
   forwardRef(
     (
-      { name, setName, shareMode, playing, run, ...rest }: InputProps,
+      {
+        name,
+        setName,
+        shareMode,
+        playing,
+        hasPlayed,
+        run,
+        ...rest
+      }: InputProps,
       ref: React.LegacyRef<HTMLInputElement>
     ) => {
       console.log("🚀 ~ playing:", playing);
@@ -32,6 +41,8 @@ export const Name: React.FC<React.HTMLProps<HTMLInputElement> & InputProps> =
           setName(nameParam);
         }
       }, [setName]);
+
+      const isDisplayMode = shareMode || playing || hasPlayed;
 
       return (
         <div
@@ -60,7 +71,7 @@ export const Name: React.FC<React.HTMLProps<HTMLInputElement> & InputProps> =
                 outline: 0,
                 backgroundColor: "#000000",
                 width: 400,
-                ...(shareMode || playing
+                ...(isDisplayMode
                   ? {
                       appearance: "none",
                       backgroundColor: "transparent",
@@ -71,8 +82,8 @@ export const Name: React.FC<React.HTMLProps<HTMLInputElement> & InputProps> =
               },
               value: name,
               onChange,
-              disabled: shareMode || playing || run,
-              readOnly: shareMode || playing || run,
+              disabled: isDisplayMode || run,
+              readOnly: isDisplayMode || run,
               spellCheck: false,
               autoFocus: true,
               placeholder: "Enter your name",

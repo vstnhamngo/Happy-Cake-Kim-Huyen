@@ -1,7 +1,6 @@
 // import reactLogo from "./assets/react.svg";
 // import viteLogo from "/vite.svg";
 import {
-  KeyboardEvent,
   useCallback,
   useEffect,
   useLayoutEffect,
@@ -12,7 +11,7 @@ import "@dotlottie/player-component";
 import "./App.css";
 import { Cake } from "./components/Cake";
 import { CakeActions } from "./components/CakeActions";
-import { Name } from "./components/Name";
+import { Celebration } from "./components/Celebration";
 import Joyride, { ACTIONS, CallBackProps } from "react-joyride";
 
 // const version = import.meta.env.PACKAGE_VERSION;
@@ -72,113 +71,121 @@ const sharedSteps = [
 function App() {
   const [candleVisible, setCandleVisible] = useState(false);
 
-  const audioRef = useRef<HTMLAudioElement>(new Audio(src));
+  const audioRef = useRef<HTMLAudioElement>(null);
   const microphoneStreamRef = useRef<MediaStream | undefined>(undefined);
 
   const [playing, setPlaying] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [run, setRun] = useState(true);
+  const [run, setRun] = useState(false);
   const [shareMode, setShareMode] = useState(false);
 
-  const [name, setName] = useState("");
-  const nameRef = useRef<HTMLInputElement>(null);
+  const name = "Kim Huyền";
+  const [hasPlayed, setHasPlayed] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [candleWasBlown, setCandleWasBlown] = useState(false);
+  const [waitingForBlow, setWaitingForBlow] = useState(false); // Chờ thổi nến
+  const celebrationAudioRef = useRef<HTMLAudioElement | null>(null);
 
-  const visibility = shareMode || playing
+  // Refs to track latest state for blow detection
+  const candleVisibleRef = useRef(candleVisible);
+  const playingRef = useRef(playing);
+  const candleWasBlownRef = useRef(candleWasBlown);
+  const waitingForBlowRef = useRef(waitingForBlow);
 
-  const lightCandle = useCallback(() => setCandleVisible(true), []);
+  // Update refs when state changes
+  useEffect(() => {
+    candleVisibleRef.current = candleVisible;
+  }, [candleVisible]);
 
-  const turnOffTheCandle = useCallback(() => setCandleVisible(false), []);
+  useEffect(() => {
+    playingRef.current = playing;
+  }, [playing]);
+
+  useEffect(() => {
+    candleWasBlownRef.current = candleWasBlown;
+  }, [candleWasBlown]);
+
+  useEffect(() => {
+    waitingForBlowRef.current = waitingForBlow;
+  }, [waitingForBlow]);
+
+  const visibility = shareMode || playing || hasPlayed || waitingForBlow;
 
   const toggleLightCandle = useCallback(
     () => setCandleVisible((prevState) => !prevState),
     []
   );
 
-  const startAudio = useCallback(() => {
-    setPlaying(true);
-    audioRef.current.load();
-    audioRef.current.play();
-    setPaused(false);
-  }, []);
+  // Trigger celebration when candle is blown - using refs for latest state
+  const triggerCelebration = useCallback(() => {
+    if (
+      candleVisibleRef.current &&
+      waitingForBlowRef.current &&
+      !candleWasBlownRef.current
+    ) {
+      setCandleVisible(false);
+      setCandleWasBlown(true);
+      setWaitingForBlow(false);
+      setShowCelebration(true);
 
-  const pause = useCallback(() => {
-    audioRef.current.pause();
-    setPaused(true);
-  }, []);
-
-  const stopAudio = useCallback(() => {
-    setPlaying(false);
-    audioRef.current.pause();
-    audioRef.current.currentTime = 0;
-    setPaused(false);
-  }, []);
-
-  const start = useCallback(() => {
-    startAudio();
-    lightCandle();
-  }, [lightCandle, startAudio]);
-
-  const stop = useCallback(() => {
-    stopAudio();
-    turnOffTheCandle();
-    setTimeout(() => {
-      nameRef.current ? nameRef.current.focus() : undefined;
-    }, 0);
-  }, [stopAudio, turnOffTheCandle]);
-
-  const blowCandles = useCallback(async (stream: MediaStream) => {
-    try {
-      microphoneStreamRef.current = stream;
-
-      const audioContext = new AudioContext();
-      const source = audioContext.createMediaStreamSource(stream);
-      const analyser = audioContext.createAnalyser();
-      source.connect(analyser);
-      analyser.fftSize = 2048;
-
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-
-      const detectBlow = () => {
-        analyser.getByteFrequencyData(dataArray);
-        const average =
-          dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
-        const threshold = 43;
-
-        if (average > threshold) {
-          setCandleVisible(false);
-        }
-      };
-
-      setInterval(detectBlow, 100);
-    } catch (error) {
-      console.error("Error accessing microphone:", error);
+      // Play celebration sound
+      if (celebrationAudioRef.current) {
+        celebrationAudioRef.current.play();
+      }
     }
   }, []);
+
+  const hideCelebration = useCallback(() => {
+    setShowCelebration(false);
+    setHasPlayed(true);
+  }, []);
+
+  const blowCandles = useCallback(
+    async (stream: MediaStream) => {
+      try {
+        microphoneStreamRef.current = stream;
+
+        const audioContext = new AudioContext();
+        const source = audioContext.createMediaStreamSource(stream);
+        const analyser = audioContext.createAnalyser();
+        source.connect(analyser);
+        analyser.fftSize = 2048;
+
+        const bufferLength = analyser.frequencyBinCount;
+        const dataArray = new Uint8Array(bufferLength);
+
+        const detectBlow = () => {
+          analyser.getByteFrequencyData(dataArray);
+          const average =
+            dataArray.reduce((acc, val) => acc + val, 0) / bufferLength;
+          const threshold = 43;
+
+          if (average > threshold) {
+            triggerCelebration();
+          }
+        };
+
+        setInterval(detectBlow, 100);
+      } catch (error) {
+        console.error("Error accessing microphone:", error);
+      }
+    },
+    [triggerCelebration]
+  );
 
   const handleJoyrideCallback = useCallback(
     (data: CallBackProps) => {
       const { action } = data;
       if (action === ACTIONS.RESET || action === ACTIONS.CLOSE) {
-        // do something
         setRun(false);
-        setTimeout(() => {
-          nameRef.current ? nameRef.current.focus() : undefined;
-        }, 0);
       }
     },
     [setRun]
   );
 
-  const onEnded = useCallback(() => { }, []);
-
-  const onKeyPress = (event: KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === "Enter") {
-      setTimeout(() => {
-        nameRef.current ? nameRef.current.blur() : undefined;
-      }, 0);
-    }
-  };
+  const onEnded = useCallback(() => {
+    setPlaying(false);
+    setWaitingForBlow(true); // Nhạc kết thúc, chờ thổi nến
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -212,6 +219,33 @@ function App() {
       setCandleVisible(true);
       setShareMode(true);
     }
+  }, []);
+
+  // Auto start when page loads
+  useEffect(() => {
+    const playAudio = async () => {
+      if (!audioRef.current) return;
+      try {
+        setPlaying(true);
+        setCandleVisible(true);
+        audioRef.current.load();
+        await audioRef.current.play();
+      } catch (error) {
+        console.log("Autoplay blocked, waiting for user interaction");
+        // Nếu autoplay bị chặn, thêm event listener cho click
+        const handleClick = async () => {
+          if (!audioRef.current) return;
+          try {
+            await audioRef.current.play();
+            document.removeEventListener("click", handleClick);
+          } catch (e) {
+            console.error("Error playing audio:", e);
+          }
+        };
+        document.addEventListener("click", handleClick);
+      }
+    };
+    playAudio();
   }, []);
 
   return (
@@ -284,17 +318,58 @@ function App() {
       <audio {...{ src, ref: audioRef, preload: "auto", onEnded }} />
 
       <div>
-        <Name
-          {...{
-            ref: nameRef,
-            name,
-            setName,
-            shareMode,
-            playing,
-            run,
-            onKeyPress,
-          }}
-        />
+        {/* Display name */}
+        {(playing || hasPlayed || waitingForBlow) && (
+          <div
+            style={{
+              position: "absolute",
+              top: "25%",
+              left: "50%",
+              transform: "translateX(-50%)",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              width: "100dvw",
+              zIndex: 40,
+            }}
+          >
+            <span
+              style={{
+                fontFamily: "Montserrat",
+                fontWeight: "bold",
+                fontSize: "2rem",
+                color: "#f0e4d0",
+                opacity: 0.9,
+                textAlign: "center",
+              }}
+            >
+              {name}
+            </span>
+            {/* Thông báo thổi nến */}
+            {waitingForBlow && (
+              <div
+                style={{
+                  marginTop: "20px",
+                  animation: "pulse 1.5s ease-in-out infinite",
+                }}
+              >
+                <span
+                  style={{
+                    fontFamily: "Montserrat",
+                    fontWeight: "bold",
+                    fontSize: "1.5rem",
+                    color: "#ff6b6b",
+                    textShadow: "0 0 10px #ff6b6b, 0 0 20px #ff6b6b",
+                    textAlign: "center",
+                  }}
+                >
+                  🎂 Hãy thổi nến đi! 🎂
+                </span>
+              </div>
+            )}
+          </div>
+        )}
         <Cake {...{ candleVisible }} />
       </div>
 
@@ -349,17 +424,27 @@ function App() {
         <CakeActions
           {...{
             run,
-            start,
-            pause,
-            stop,
             toggleLightCandle,
             setRun,
             playing,
-            paused,
             candleVisible,
           }}
         />
       </div>
+
+      {/* Celebration audio */}
+      <audio
+        ref={celebrationAudioRef}
+        src="/assets/korea-hbd.mp3"
+        preload="auto"
+      />
+
+      {/* Celebration overlay */}
+      <Celebration
+        show={showCelebration}
+        name={name}
+        onHide={hideCelebration}
+      />
 
       {/* <div
         style={{

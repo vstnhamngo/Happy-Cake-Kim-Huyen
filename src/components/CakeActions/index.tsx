@@ -1,8 +1,5 @@
 import { Fragment } from "react/jsx-runtime";
 import {
-  TbPlayerPlayFilled,
-  TbPlayerPauseFilled,
-  TbPlayerStopFilled,
   TbInfoCircleFilled,
   TbFlame,
   TbFlameOff,
@@ -24,13 +21,9 @@ const buttonStyle = {
 
 export const CakeActions = ({
   run,
-  start,
-  pause,
-  stop,
   toggleLightCandle,
   setRun,
   playing,
-  paused,
   candleVisible,
 }: // eslint-disable-next-line @typescript-eslint/no-explicit-any
 any) => {
@@ -39,24 +32,6 @@ any) => {
   const actions = useCallback(() => {
     return (
       <Fragment>
-        {!playing || paused ? (
-          <button id="start" style={buttonStyle} onClick={start}>
-            {/* Start */}
-            <TbPlayerPlayFilled />
-          </button>
-        ) : null}
-        {playing && !paused ? (
-          <button id="pause" style={buttonStyle} onClick={pause}>
-            {/* Pause */}
-            <TbPlayerPauseFilled />
-          </button>
-        ) : null}
-        {playing ? (
-          <button id="stop" style={buttonStyle} onClick={stop}>
-            {/* Stop */}
-            <TbPlayerStopFilled />
-          </button>
-        ) : null}
         <button
           id="toggle-candle"
           style={buttonStyle}
@@ -81,32 +56,11 @@ any) => {
         </CopyToClipboard>
       </Fragment>
     );
-  }, [
-    candleVisible,
-    guide,
-    pause,
-    paused,
-    playing,
-    start,
-    stop,
-    toggleLightCandle,
-  ]);
+  }, [candleVisible, guide, playing, toggleLightCandle]);
 
   const guideActions = useCallback(() => {
     return (
       <Fragment>
-        <button id="start" style={buttonStyle} onClick={start} disabled={run}>
-          {/* Start */}
-          <TbPlayerPlayFilled />
-        </button>
-        <button id="pause" style={buttonStyle} onClick={pause} disabled={run}>
-          {/* Pause */}
-          <TbPlayerPauseFilled />
-        </button>
-        <button id="stop" style={buttonStyle} onClick={stop} disabled={run}>
-          {/* Stop */}
-          <TbPlayerStopFilled />
-        </button>
         <button
           id="toggle-candle"
           style={buttonStyle}
@@ -121,7 +75,7 @@ any) => {
         </button>
       </Fragment>
     );
-  }, [candleVisible, pause, run, start, stop, toggleLightCandle]);
+  }, [candleVisible, run, toggleLightCandle]);
 
   return (
     <div
